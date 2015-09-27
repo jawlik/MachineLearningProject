@@ -21,7 +21,7 @@ To answer this, I performed the following high-level steps:
 Start by loading the necessary libraries and the two datasets.
 
 
-```{r, warning=FALSE}
+```{r, warning=FALSE, message=FALSE}
 library(caret)
 library(ggplot2)
 library(dplyr)
