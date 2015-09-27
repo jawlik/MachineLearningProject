@@ -1,0 +1,112 @@
+---
+title: "jawlik_project"
+author: "Matthew A Jawlik"
+date: "Sunday, September 27, 2015"
+output: html_document
+---
+###Introduction
+
+The objective of this project is to predict the type of movement being done ('classe' variable) given various measurements.
+
+To answer this, I performed the following high-level steps:
+
+1. Read in the data
+2. To allow cross-validation, subdivide the training data into validation and train sets
+3. Clean the data
+4. Create two models, using 5-fold cross validation (Decision Tree and Random Forest)
+5. Use confusion matrices to select the best
+6. Apply to test dataset and submit
+
+###Load the data:
+Start by loading the necessary libraries and the two datasets.
+
+
+```{r, warning=FALSE}
+library(caret)
+library(ggplot2)
+library(dplyr)
+library(rattle)
+library(rpart)
+library(randomForest)
+library(rpart.plot)
+library(knitr)
+trainFile <- "C:\\Users\\MJawlik\\Documents\\R\\R-3.1.2\\Machine Learning\\Project\\pml-training.csv"
+testFile <- "C:\\Users\\MJawlik\\Documents\\R\\R-3.1.2\\Machine Learning\\Project\\pml-testing.csv"
+training <- data.frame(read.csv(trainFile, header=TRUE))
+testing <- data.frame(read.csv(testFile, header=TRUE))
+```
+
+###Create a training and validation sets
+For cross validation, we will split the training datset further into a train dataset and validation data set.  75% of the records will go into the train, and 25% reserved for cross validation.
+
+```{r}
+set.seed(39393)
+inTrain <- createDataPartition(y=training$classe, p = 0.75, list = FALSE)
+train <- training[inTrain, ] 
+validate <- training[-inTrain, ]
+```
+
+###Clean the Data
+Clear near-zero variance variables & apply the same removal to validate and test sets
+```{r}
+nearZero <- nearZeroVar(train)
+train <- train[, -nearZero]
+validate <- validate[, -nearZero]
+testing <- testing[, -nearZero]
+```
+
+There appear to be many NAs.  If we remove all but complete cases, our dataset drops by 90%.  Instead, we will remove the columns containing NAs, which should preserve the dataset size and provide enough predictors to build a good model.
+```{r}
+trainNoNA <- train[complete.cases(train), ]
+dim(trainNoNA)
+train <- train[, colSums(is.na(train)) == 0] 
+validate <- validate[, colSums(is.na(validate)) == 0] 
+```
+
+X is not a real variable; removing
+```{r}
+train <- train[c(-1)]
+validate <- validate[c(-1)]
+testing <- testing[c(-1)]
+```
+
+###Create Models
+
+####Decision Tree
+Train a model using the Decision Tree algorithm wth 5-fold cross-validation.
+
+```{r}
+tree <- train(classe ~ ., data=train, method="rpart", 
+               trControl=trainControl(method='cv', number=5))
+fancyRpartPlot(tree$finalModel)
+```
+
+Predict on validation set
+```{r}
+predicted <- predict(tree, validate)
+confusionMatrix(predicted, validate$classe)
+```
+
+####Random Forest
+Train a model using the Random Forest algorithm wth 5-fold cross-validation.
+
+```{r}
+forest <- train(classe ~ ., data=train, method="rf", 
+               trControl=trainControl(method='cv', number=5))
+```
+
+Predict on validation set
+```{r}
+predicted2 <- predict(forest, validate)
+confusionMatrix(predicted2, validate$classe)
+```
+
+###Conclusion and application to test dataset
+
+From above, we see that the Random Forest method with 5-fold cross-validation produced much better accuracy than the Decision Tree, with an accuracy rate of .9994.  Using this method, we would expect this same out-of-sample error rate to apply to the test set.
+
+```{r}
+predicted3 <- predict(forest, testing)
+predicted3
+```
+
